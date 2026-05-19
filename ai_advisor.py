@@ -1,9 +1,6 @@
-from langchain_ollama import OllamaLLM 
+from groq import Groq
 
-llm = OllamaLLM(
-    model="mistral:7b",
-    timeout=120
-)
+client = Groq()  # Automatically reads GROQ_API_KEY from environment
 
 def get_financial_advice(income, spent, status, category_breakdown=None):
     category_text = ""
@@ -24,9 +21,16 @@ Focus on their highest spending categories if available.
 Keep each tip to 2-3 sentences. Be encouraging, not preachy.
 """
     try:
-        return llm.invoke(prompt)
+        response = client.chat.completions.create(
+            model="mistral-saba-24b",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=1000,
+            temperature=0.7
+        )
+        return response.choices[0].message.content
     except Exception as e:
-        return f"AI advisor is currently unavailable. Please make sure Ollama is running with Mistral. Error: {str(e)}"
+        return f"AI advisor is currently unavailable. Please check your Groq API key. Error: {str(e)}"
+
 
 def get_chat_response(income, spent, status, category_breakdown, chat_history, user_message):
     category_text = ""
@@ -42,15 +46,19 @@ The student's financial snapshot:
 {category_text}
 Answer their questions in a helpful, concise, and friendly way."""
 
-    # Build conversation string
-    history_text = ""
+    # Build messages list for Groq
+    messages = [{"role": "system", "content": system_context}]
     for msg in chat_history:
-        role = "Student" if msg["role"] == "user" else "Advisor"
-        history_text += f"{role}: {msg['content']}\n"
-
-    full_prompt = f"{system_context}\n\nConversation so far:\n{history_text}Student: {user_message}\nAdvisor:"
+        messages.append({"role": msg["role"], "content": msg["content"]})
+    messages.append({"role": "user", "content": user_message})
 
     try:
-        return llm.invoke(full_prompt)
+        response = client.chat.completions.create(
+            model="mistral-saba-24b",
+            messages=messages,
+            max_tokens=1000,
+            temperature=0.7
+        )
+        return response.choices[0].message.content
     except Exception as e:
-        return f"AI advisor unavailable. Make sure Ollama is running. Error: {str(e)}"
+        return f"AI advisor unavailable. Please check your Groq API key. Error: {str(e)}"
